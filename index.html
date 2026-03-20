@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phần mềm Quản lý & Tính Đảng phí - Đảng ủy PA01</title>
+    <!-- Thư viện Tailwind CSS để thiết kế giao diện nhanh và đẹp -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Thư viện Vue.js để xử lý logic tính toán theo thời gian thực -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Thư viện SheetJS để xuất file Excel -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <!-- Icon FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Tùy chỉnh thanh cuộn cho đẹp mắt */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen">
+
+<div id="app" class="max-w-7xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <header class="mb-8 flex items-center justify-between bg-white p-6 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-red-600">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800 uppercase tracking-wide">
+                <i class="fa-solid fa-flag text-red-600 mr-2"></i> Hệ thống Tổng hợp Đảng phí
+            </h1>
+            <p class="text-slate-500 mt-1">Đảng bộ cơ sở Phòng An ninh đối ngoại (PA01) - Công an tỉnh Phú Thọ</p>
+        </div>
+        <div class="text-right hidden md:block">
+            <p class="text-sm font-semibold text-slate-600">Phiên bản 1.0</p>
+            <p class="text-xs text-slate-400">Thiết kế bởi Đ/c Vi Ngọc Phương & AI</p>
+        </div>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        <!-- CỘT TRÁI: KHU VỰC NHẬP LIỆU -->
+        <div class="lg:col-span-5 space-y-6">
+            
+            <!-- Thông tin kỳ báo cáo -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-semibold text-slate-700 mb-4 border-b pb-2">
+                    <i class="fa-regular fa-calendar-alt text-blue-500 mr-2"></i> 1. Thông tin kỳ báo cáo
+                </h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Quý (I, II, III, IV)</label>
+                        <select v-model="quy" class="w-full border-slate-300 rounded-lg p-2.5 bg-slate-50 border focus:ring-blue-500 focus:border-blue-500 outline-none transition">
+                            <option value="I">Quý I</option>
+                            <option value="II">Quý II</option>
+                            <option value="III">Quý III</option>
+                            <option value="IV">Quý IV</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Năm</label>
+                        <input type="number" v-model.number="nam" class="w-full border-slate-300 rounded-lg p-2.5 bg-slate-50 border focus:ring-blue-500 focus:border-blue-500 outline-none transition" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tỷ lệ cấu hình (Ẩn đi cho gọn, vì đã fix theo yêu cầu) -->
+            <div class="bg-blue-50 p-4 rounded-xl shadow-sm border border-blue-100 text-sm text-blue-800">
+                <p><i class="fa-solid fa-circle-info mr-1"></i> <strong>Cơ chế phân bổ tự động:</strong></p>
+                <ul class="list-disc ml-5 mt-1 opacity-90">
+                    <li>Chi bộ trích giữ lại: <strong>{{ tyLe.chiBo }}%</strong> tổng thu.</li>
+                    <li>Đảng ủy PA01 giữ: <strong>{{ tyLe.dangUyGiulLai }}%</strong> tổng thu.</li>
+                    <li>Nộp lên Công an tỉnh: <strong>{{ tyLe.nopCapTren }}%</strong> (trên phần tiền Đảng ủy PA01 giữ).</li>
+                </ul>
+            </div>
+
+            <!-- Nhập liệu Chi bộ 1 -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-semibold text-slate-700 mb-4 border-b pb-2 flex justify-between">
+                    <span><i class="fa-solid fa-users text-green-600 mr-2"></i> 2. Số liệu Chi bộ 1</span>
+                    <span class="text-sm font-normal text-slate-400 bg-slate-100 px-2 py-0.5 rounded">Nhập số VNĐ</span>
+                </h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Tổng số Đảng viên</label>
+                        <input type="number" v-model.number="cb1.dv" placeholder="VD: 15" class="w-full border-slate-300 rounded-lg p-2 border focus:ring-green-500 focus:border-green-500 outline-none transition" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Số tiền đảng phí Kỳ này</label>
+                        <div class="relative">
+                            <input type="number" v-model.number="cb1.thu" class="w-full border-slate-300 rounded-lg p-2 pr-16 border focus:ring-green-500 focus:border-green-500 outline-none transition" />
+                            <span class="absolute right-3 top-2.5 text-slate-400 text-sm">VNĐ</span>
+                        </div>
+                        <p class="text-xs text-green-600 mt-1 font-medium italic" v-if="cb1.thu">{{ formatCurrency(cb1.thu) }} đ</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Số tiền đảng phí Lũy kế (Từ đầu năm)</label>
+                        <div class="relative">
+                            <input type="number" v-model.number="cb1.luyKe" class="w-full border-slate-300 rounded-lg p-2 pr-16 border focus:ring-green-500 focus:border-green-500 outline-none transition" />
+                            <span class="absolute right-3 top-2.5 text-slate-400 text-sm">VNĐ</span>
+                        </div>
+                        <p class="text-xs text-green-600 mt-1 font-medium italic" v-if="cb1.luyKe">{{ formatCurrency(cb1.luyKe) }} đ</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Nhập liệu Chi bộ 2 -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-semibold text-slate-700 mb-4 border-b pb-2 flex justify-between">
+                    <span><i class="fa-solid fa-users text-orange-500 mr-2"></i> 3. Số liệu Chi bộ 2</span>
+                    <span class="text-sm font-normal text-slate-400 bg-slate-100 px-2 py-0.5 rounded">Nhập số VNĐ</span>
+                </h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Tổng số Đảng viên</label>
+                        <input type="number" v-model.number="cb2.dv" placeholder="VD: 20" class="w-full border-slate-300 rounded-lg p-2 border focus:ring-orange-500 focus:border-orange-500 outline-none transition" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Số tiền đảng phí Kỳ này</label>
+                        <div class="relative">
+                            <input type="number" v-model.number="cb2.thu" class="w-full border-slate-300 rounded-lg p-2 pr-16 border focus:ring-orange-500 focus:border-orange-500 outline-none transition" />
+                            <span class="absolute right-3 top-2.5 text-slate-400 text-sm">VNĐ</span>
+                        </div>
+                        <p class="text-xs text-orange-600 mt-1 font-medium italic" v-if="cb2.thu">{{ formatCurrency(cb2.thu) }} đ</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Số tiền đảng phí Lũy kế (Từ đầu năm)</label>
+                        <div class="relative">
+                            <input type="number" v-model.number="cb2.luyKe" class="w-full border-slate-300 rounded-lg p-2 pr-16 border focus:ring-orange-500 focus:border-orange-500 outline-none transition" />
+                            <span class="absolute right-3 top-2.5 text-slate-400 text-sm">VNĐ</span>
+                        </div>
+                        <p class="text-xs text-orange-600 mt-1 font-medium italic" v-if="cb2.luyKe">{{ formatCurrency(cb2.luyKe) }} đ</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- CỘT PHẢI: PREVIEW BÁO CÁO & XUẤT EXCEL -->
+        <div class="lg:col-span-7">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 sticky top-6">
+                <div class="flex justify-between items-center mb-6 border-b pb-4">
+                    <h2 class="text-xl font-bold text-slate-800">
+                        <i class="fa-solid fa-file-invoice text-blue-600 mr-2"></i> Xem trước Báo Cáo
+                    </h2>
+                    <button @click="exportExcel" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg font-medium transition shadow-sm flex items-center gap-2">
+                        <i class="fa-solid fa-file-excel"></i> Xuất file Excel
+                    </button>
+                </div>
+
+                <!-- Mô phỏng bảng báo cáo -->
+                <div class="overflow-x-auto">
+                    <div class="min-w-[600px] border border-slate-300">
+                        <!-- Tiêu đề -->
+                        <div class="text-center py-4 font-bold text-lg bg-slate-50 border-b border-slate-300">
+                            BÁO CÁO THU NỘP ĐẢNG PHÍ<br>
+                            <span class="text-sm font-normal">QUÝ {{ quy }} NĂM {{ nam }}</span>
+                        </div>
+                        
+                        <!-- Lưới dữ liệu -->
+                        <table class="w-full text-sm text-left border-collapse">
+                            <thead class="bg-slate-100 text-slate-700 font-semibold border-b-2 border-slate-300">
+                                <tr>
+                                    <th class="p-2 border-r border-slate-300 w-10 text-center">TT</th>
+                                    <th class="p-2 border-r border-slate-300">Chỉ tiêu</th>
+                                    <th class="p-2 border-r border-slate-300 w-24 text-center">ĐVT</th>
+                                    <th class="p-2 w-32 text-right">Đảng bộ khác</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-200">
+                                <tr class="bg-blue-50/50">
+                                    <td class="p-2 border-r border-slate-300 text-center font-bold">I</td>
+                                    <td class="p-2 border-r border-slate-300 font-bold">Tổng số đảng viên cuối kỳ</td>
+                                    <td class="p-2 border-r border-slate-300 text-center">Người</td>
+                                    <td class="p-2 text-right font-bold text-blue-700">{{ tongDv }}</td>
+                                </tr>
+                                <tr class="bg-slate-50">
+                                    <td class="p-2 border-r border-slate-300 text-center font-bold">II</td>
+                                    <td class="p-2 border-r border-slate-300 font-bold" colspan="3">Đảng phí đã thu được từ chi bộ</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border-r border-slate-300 text-center">1.0</td>
+                                    <td class="p-2 border-r border-slate-300 pl-4">Kỳ báo cáo</td>
+                                    <td class="p-2 border-r border-slate-300 text-center">Đồng</td>
+                                    <td class="p-2 text-right">{{ formatCurrency(thuKyNay) }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border-r border-slate-300 text-center">2.0</td>
+                                    <td class="p-2 border-r border-slate-300 pl-4">Từ đầu năm đến cuối kỳ</td>
+                                    <td class="p-2 border-r border-slate-300 text-center">Đồng</td>
+                                    <td class="p-2 text-right">{{ formatCurrency(thuLuyKe) }}</td>
+                                </tr>
+                                
+                                <tr class="bg-slate-50">
+                                    <td class="p-2 border-r border-slate-300 text-center font-bold">III</td>
+                                    <td class="p-2 border-r border-slate-300 font-bold" colspan="3">Đảng phí trích giữ lại ở các cấp</td>
+                                </tr>
+                                <tr class="bg-orange-50/50 font-medium">
+                                    <td class="p-2 border-r border-slate-300 text-center">1.0</td>
+                                    <td class="p-2 border-r border-slate-300 pl-4">Kỳ báo cáo</td>
+                                    <td class="p-2 border-r border-slate-300 text-center">Đồng</td>
+                                    <td class="p-2 text-right text-orange-700">{{ formatCurrency(tongGiuLaiKyNay) }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border-r border-slate-300 text-center">1.1</td>
+                                    <td class="p-2 border-r border-slate-300 pl-8">- Chi bộ ({{ tyLe.chiBo }}%)</td>
+                                    <td class="p-2 border-r border-slate-300 text-center">Đồng</td>
+                                    <td class="p-2 text-right">{{ formatCurrency(chiBoGiuKyNay) }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border-r border-slate-300 text-center">1.2</td>
+                                    <td class="p-2 border-r border-slate-300 pl-8">- Đảng uỷ cơ sở</td>
+                                    <td class="p-2 border-r border-slate-300 text-center">Đồng</td>
+                                    <td class="p-2 text-right">{{ formatCurrency(dangUyGiuKyNay) }}</td>
+                                </tr>
+
+                                <tr class="bg-orange-50/50 font-medium">
+                                    <td class="p-2 border-r border-slate-300 text-center">2.0</td>
+                                    <td class="p-2 border-r border-slate-300 pl-4">Lũy kế từ đầu năm</td>
+                                    <td class="p-2 border-r border-slate-300 text-center">Đồng</td>
+                                    <td class="p-2 text-right text-orange-700">{{ formatCurrency(tongGiuLaiLuyKe) }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border-r border-slate-300 text-center">2.1</td>
+                                    <td class="p-2 border-r border-slate-300 pl-8">- Chi bộ ({{ tyLe.chiBo }}%)</td>
+                                    <td class="p-2 border-r border-slate-300 text-center">Đồng</td>
+                                    <td class="p-2 text-right">{{ formatCurrency(chiBoGiuLuyKe) }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border-r border-slate-300 text-center">2.2</td>
+                                    <td class="p-2 border-r border-slate-300 pl-8">- Đảng uỷ cơ sở</td>
+                                    <td class="p-2 border-r border-slate-300 text-center">Đồng</td>
+                                    <td class="p-2 text-right">{{ formatCurrency(dangUyGiuLuyKe) }}</td>
+                                </tr>
+
+                                <tr class="bg-red-50/50">
+                                    <td class="p-2 border-r border-slate-300 text-center font-bold">IV</td>
+                                    <td class="p-2 border-r border-slate-300 font-bold text-red-700">Đảng phí nộp lên cấp trên</td>
+                                    <td class="p-2 border-r border-slate-300 text-center"></td>
+                                    <td class="p-2 text-right"></td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border-r border-slate-300 text-center">1.0</td>
+                                    <td class="p-2 border-r border-slate-300 pl-4 font-medium text-red-600">Kỳ báo cáo</td>
+                                    <td class="p-2 border-r border-slate-300 text-center">Đồng</td>
+                                    <td class="p-2 text-right font-bold text-red-600">{{ formatCurrency(nopCapTrenKyNay) }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border-r border-slate-300 text-center">2.0</td>
+                                    <td class="p-2 border-r border-slate-300 pl-4 font-medium text-red-600">Từ đầu năm đến cuối kỳ</td>
+                                    <td class="p-2 border-r border-slate-300 text-center">Đồng</td>
+                                    <td class="p-2 text-right font-bold text-red-600">{{ formatCurrency(nopCapTrenLuyKe) }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="mt-4 text-sm text-slate-500 italic">
+                    <i class="fa-solid fa-circle-check text-green-500 mr-1"></i> Số liệu cập nhật tự động. Khi bấm "Xuất file Excel", hệ thống sẽ tải về máy file mẫu B01/ĐP chuẩn để in ấn.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const { createApp } = Vue;
+
+    createApp({
+        data() {
+            return {
+                quy: 'I',
+                nam: 2026,
+                // Dữ liệu nhập liệu mặc định
+                cb1: { dv: null, thu: null, luyKe: null },
+                cb2: { dv: null, thu: null, luyKe: null },
+                // Tỷ lệ cấu hình theo yêu cầu của PA01 Phú Thọ
+                tyLe: { 
+                    chiBo: 50,           // Trích lại cho Chi bộ 50%
+                    dangUyGiulLai: 50,   // Đảng ủy giữ lại 50%
+                    nopCapTren: 30       // Nộp cấp trên 30% của phần Đảng ủy giữ
+                }
+            }
+        },
+        computed: {
+            // Tổng hợp cơ bản
+            tongDv() { return (this.cb1.dv || 0) + (this.cb2.dv || 0); },
+            thuKyNay() { return (this.cb1.thu || 0) + (this.cb2.thu || 0); },
+            thuLuyKe() { return (this.cb1.luyKe || 0) + (this.cb2.luyKe || 0); },
+            
+            // TÍNH TOÁN KỲ BÁO CÁO (KỲ NÀY)
+            chiBoGiuKyNay() { return Math.round(this.thuKyNay * (this.tyLe.chiBo / 100)); },
+            // Nộp cấp trên = (Tổng * 50% Đảng ủy) * 30%
+            nopCapTrenKyNay() { return Math.round((this.thuKyNay * (this.tyLe.dangUyGiulLai / 100)) * (this.tyLe.nopCapTren / 100)); },
+            // Đảng ủy thực giữ = (Tổng * 50%) - Phần nộp cấp trên
+            dangUyGiuKyNay() { return Math.round((this.thuKyNay * (this.tyLe.dangUyGiulLai / 100)) - this.nopCapTrenKyNay); },
+            tongGiuLaiKyNay() { return this.chiBoGiuKyNay + this.dangUyGiuKyNay; },
+
+            // TÍNH TOÁN LŨY KẾ (TỪ ĐẦU NĂM)
+            chiBoGiuLuyKe() { return Math.round(this.thuLuyKe * (this.tyLe.chiBo / 100)); },
+            nopCapTrenLuyKe() { return Math.round((this.thuLuyKe * (this.tyLe.dangUyGiulLai / 100)) * (this.tyLe.nopCapTren / 100)); },
+            dangUyGiuLuyKe() { return Math.round((this.thuLuyKe * (this.tyLe.dangUyGiulLai / 100)) - this.nopCapTrenLuyKe); },
+            tongGiuLaiLuyKe() { return this.chiBoGiuLuyKe + this.dangUyGiuLuyKe; }
+        },
+        methods: {
+            formatCurrency(value) {
+                if (!value) return 0;
+                return value.toLocaleString('vi-VN');
+            },
+            exportExcel() {
+                // Tạo cấu trúc mảng 2 chiều chính xác TỪNG CỘT theo file Excel mẫu của Đảng ủy
+                const excelData = [
+                    ["        ĐẢNG CỘNG SẢN VIỆT NAM", "", "", "", "", "", "                                        Mẫu báo cáo B01/ĐP", "", ""],
+                    ["  Đơn vị báo cáo: Đảng uỷ Phòng PA01", "", "", "", "          Ban hành kèm theo Công văn số 141 -CV/VPTW/nb,", "", "", "", ""],
+                    ["  Đơn vị nhận báo cáo: Văn phòng Đảng uỷ CAT", "", "", "", "", "Ngày 17-3-2011 của Văn phòng Trung ương Đảng", "", "", ""],
+                    ["", "", "", "", "", "", "", "", ""],
+                    ["", "BÁO CÁO THU NỘP ĐẢNG PHÍ", "", "", "", "", "", "", ""],
+                    ["", ` QUÝ ${this.quy} NĂM ${this.nam}`, "", "", "", "", "", "", ""],
+                    ["TT", "Chỉ tiêu", "Đơn vị tính", "Mã số", "Đảng bộ xã, phường, thị trấn", "Đảng bộ doanh nghiệp", "Đảng bộ khác", "Cộng", "Ghi chú"],
+                    ["A", "B", "C", "D", "1.0", "2.0", "3.0", "4=1+2+3", "E"],
+                    ["I", "Tổng số đảng viên đến cuối kỳ báo cáo", "Người", "01", "", "", this.tongDv, this.tongDv, ""],
+                    ["II", "Đảng phí đã thu được từ chi bộ của cấp báo cáo", "", "", "", "", "", "", ""],
+                    ["1.0", "Kỳ báo cáo", "Đồng", "02", "", "", this.thuKyNay, this.thuKyNay, ""],
+                    ["2.0", "Từ đầu năm đến cuối kỳ báo cáo", "Đồng", "03", "", "", this.thuLuyKe, this.thuLuyKe, ""],
+                    ["III", "Đảng phí trích giữ lại ở các cấp", "", "", "", "", "", "", ""],
+                    ["1.0", "Kỳ báo cáo(05+06+07)", "Đồng", "04", "", "", this.tongGiuLaiKyNay, this.tongGiuLaiKyNay, ""],
+                    ["1.1", "Chi bộ", "Đồng", "05", "", "", this.chiBoGiuKyNay, this.chiBoGiuKyNay, ""],
+                    ["1.2", "Đảng uỷ cơ sở", "Đồng", "06", "", "", this.dangUyGiuKyNay, this.dangUyGiuKyNay, ""],
+                    ["2.0", "Từ đầu năm đến cuối kỳ báo cáo", "Đồng", "08", "", "", this.tongGiuLaiLuyKe, this.tongGiuLaiLuyKe, ""],
+                    ["2.1", "Chi bộ", "Đồng", "09", "", "", this.chiBoGiuLuyKe, this.chiBoGiuLuyKe, ""],
+                    ["2.2", "Đảng uỷ cơ sở", "Đồng", "10", "", "", this.dangUyGiuLuyKe, this.dangUyGiuLuyKe, ""],
+                    ["IV", "Đảng phí nộp lên cấp trên", "", "", "", "", "", "", ""],
+                    ["1.0", "Kỳ báo cáo", "Đồng", "12", "", "", this.nopCapTrenKyNay, this.nopCapTrenKyNay, ""],
+                    ["2.0", "Từ đầu năm đến cuối kỳ báo cáo", "Đồng", "13", "", "", this.nopCapTrenLuyKe, this.nopCapTrenLuyKe, ""]
+                ];
+
+                // Khởi tạo Workbook và Worksheet
+                const ws = XLSX.utils.aoa_to_sheet(excelData);
+                const wb = XLSX.utils.book_new();
+                
+                // Tùy chỉnh độ rộng cột cho file Excel đẹp hơn
+                ws['!cols'] = [
+                    {wch: 5},   // TT
+                    {wch: 45},  // Chỉ tiêu
+                    {wch: 12},  // ĐVT
+                    {wch: 8},   // Mã số
+                    {wch: 25},  // ĐB xã
+                    {wch: 25},  // ĐB doanh nghiệp
+                    {wch: 20},  // ĐB khác (Số liệu vào cột này)
+                    {wch: 20},  // Cộng
+                    {wch: 15}   // Ghi chú
+                ];
+
+                XLSX.utils.book_append_sheet(wb, ws, "BaoCaoDP");
+                
+                // Tải file về máy
+                const fileName = `Dang_Phi_PA01_Quy_${this.quy}_${this.nam}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+            }
+        }
+    }).mount('#app')
+</script>
+</body>
+</html>
